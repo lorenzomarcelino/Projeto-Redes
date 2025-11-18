@@ -1,0 +1,50 @@
+# --- GERAL / SISTEMA OPERACIONAL ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log
+
+# --- FRONTEND (Node.js / React) ---
+# Dependências (Nunca enviar para o Git)
+node_modules/
+frontend/node_modules/
+
+# Build de produção
+dist/
+build/
+frontend/dist/
+
+# Variáveis de ambiente locais
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs de erro do NPM/Yarn
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- BACKEND (Python / Raspberry Pi) ---
+# Bytecode compilado
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+
+# --- ARQUIVOS DE DADOS (PERSISTÊNCIA LOCAL) ---
+# Ignorar os bancos de dados locais para não sujar o commit
+sensor_history.json
+gateway_config.json
+backend/scripts/sensor_history.json
+backend/scripts/gateway_config.json
+
+# --- FIRMWARE (Arduino / PlatformIO) ---
+.pio/
+.ip-address
