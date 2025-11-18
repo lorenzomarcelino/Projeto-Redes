@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import mqtt from 'mqtt';
 
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
-const TOPIC = 'projeto_assobio/sensor/dados';
+const TOPIC = 'projeto_redes/sensor/dados';
 
 const MQTTContext = createContext();
 

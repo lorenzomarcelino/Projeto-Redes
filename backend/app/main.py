@@ -9,8 +9,8 @@ from datetime import datetime
 BROKER_ADDRESS = "localhost"
 PORT = 1883
 
-TOPIC_SENSOR = "projeto_assobio/sensor/dados"
-TOPIC_CONFIG = "projeto_assobio/config/alertas"
+TOPIC_SENSOR = "projeto_redes/sensor/dados"
+TOPIC_CONFIG = "projeto_redes/config/alertas"
 
 HISTORY_FILE = "sensor_history.json"
 CONFIG_FILE = "gateway_config.json"

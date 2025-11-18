@@ -4,7 +4,7 @@ import { Bell, Save, Trash2, CheckCircle, ShieldAlert } from 'lucide-react';
 import mqtt from 'mqtt';
 
 // Tópico específico para enviar configurações
-const CONFIG_TOPIC = 'projeto_assobio/config/alertas';
+const CONFIG_TOPIC = 'projeto_redes/config/alertas';
 // Broker para envio
 const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 

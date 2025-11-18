@@ -25,7 +25,7 @@ O sistema opera em uma topologia estrela, onde o Raspberry Pi é o centro de tod
 ### 3.1. Fluxo Lógico de Dados
 
 1.  **COLETA (Sensor):** O **ESP8266 (D1 Mini)** coleta dados de temperatura e umidade, serializa-os em um payload JSON e os publica em um tópico MQTT.
-2.  **DISTRIBUIÇÃO (Broker):** O **Raspberry Pi** (rodando o Broker **Mosquitto**) recebe a mensagem no tópico `projeto_assobio/sensor/dados`.
+2.  **DISTRIBUIÇÃO (Broker):** O **Raspberry Pi** (rodando o Broker **Mosquitto**) recebe a mensagem no tópico `projeto_redes/sensor/dados`.
 3.  **PROCESSAMENTO (Backend):** Um script Python (`backend_iot.py`), também no Raspberry Pi e inscrito neste tópico, recebe a mensagem.
 4.  **PERSISTÊNCIA (Backend):** O script Python imediatamente salva o dado bruto em um arquivo de log local (`sensor_history.json`) para fins de auditoria e histórico.
 5.  **VISUALIZAÇÃO (Frontend):** O Broker Mosquitto, simultaneamente, encaminha a mesma mensagem para o **Dashboard React**, que está inscrito no mesmo tópico.
@@ -86,7 +86,7 @@ O núcleo da inteligência reside no script `backend_iot.py`.
 * **Persistência de Dados:** O sistema utiliza dois arquivos JSON locais para persistência:
     1.  `sensor_history.json`: Um log rotativo (últimos 2000 registros) de todas as leituras recebidas, garantindo um backup de auditoria.
     2.  `gateway_config.json`: Salva as regras de alerta (Temp. Máxima, Chat ID) definidas pelo usuário no dashboard. O sistema recarrega este arquivo a cada reinicialização.
-* **Integração Telegram:** O script escuta o tópico de configuração (`projeto_assobio/config/alertas`) e, ao receber dados do sensor, avalia as regras. Se uma regra for violada, o script faz uma requisição `POST` para a API HTTP do Telegram, enviando a notificação.
+* **Integração Telegram:** O script escuta o tópico de configuração (`projeto_redes/config/alertas`) e, ao receber dados do sensor, avalia as regras. Se uma regra for violada, o script faz uma requisição `POST` para a API HTTP do Telegram, enviando a notificação.
 
 ### 5.3. Funcionalidades do Dashboard
 O Frontend React (cliente) é a interface de gerenciamento e visualização:
@@ -132,8 +132,8 @@ O sistema foi configurado para **auto-execução**.
 
 | Tópico | Publicador | Assinante(s) | Descrição |
 | :--- | :--- | :--- | :--- |
-| `projeto_assobio/sensor/dados` | D1 Mini (ESP8266) | Backend (Python) / Frontend (React) | Leituras de sensor. |
-| `projeto_assobio/config/alertas` | Frontend (React) | Backend (Python) | Envio de novas regras de alerta. |
+| `projeto_redes/sensor/dados` | D1 Mini (ESP8266) | Backend (Python) / Frontend (React) | Leituras de sensor. |
+| `projeto_redes/config/alertas` | Frontend (React) | Backend (Python) | Envio de novas regras de alerta. |
 
 ---
 

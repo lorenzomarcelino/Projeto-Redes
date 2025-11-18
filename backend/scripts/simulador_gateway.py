@@ -9,8 +9,8 @@ from datetime import datetime
 # --- CONFIGURAÇÕES ---
 BROKER = "broker.emqx.io"
 PORT = 1883
-TOPIC_DADOS = "projeto_assobio/sensor/dados"
-TOPIC_CONFIG = "projeto_assobio/config/alertas"
+TOPIC_DADOS = "projeto_redes/sensor/dados"
+TOPIC_CONFIG = "projeto_redes/config/alertas"
 
 # Arquivos para salvar dados no disco (Persistência)
 CONFIG_FILE = "gateway_config.json" 

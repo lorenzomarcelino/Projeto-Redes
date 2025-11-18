@@ -9,7 +9,7 @@ const char* password = "SENHA_DA_REDE";
 // --- MQTT CONFIGURATION ---
 const char* mqtt_server = "192.168.0.11"; // TARGET IP (RASPBERRY PI)
 const int mqtt_port = 1883;
-const char* topic_sensor = "projeto_assobio/sensor/dados";
+const char* topic_sensor = "projeto_redes/sensor/dados";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
