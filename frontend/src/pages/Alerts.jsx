@@ -6,7 +6,8 @@ import mqtt from 'mqtt';
 // Tópico específico para enviar configurações
 const CONFIG_TOPIC = 'projeto_redes/config/alertas';
 // Broker para envio
-const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+const BROKER_IP = '10.70.202.34';
+const BROKER_URL = `ws://${BROKER_IP}:9001`;
 
 const Alerts = () => {
   const { status } = useMQTT();

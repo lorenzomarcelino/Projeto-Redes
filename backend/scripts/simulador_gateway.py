@@ -87,7 +87,7 @@ def append_history_log(data):
 def send_telegram_msg(message):
     if not alert_config['chatId']: return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": alert_config['chatId'], "text": f"🚨 ALERTA AS-SOBIO 🚨\n\n{message}"}
+    data = {"chat_id": alert_config['chatId'], "text": f"🚨 ALERTA PROJETO REDES 🚨\n\n{message}"}
     try: requests.post(url, data=data)
     except: pass
 

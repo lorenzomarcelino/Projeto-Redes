@@ -1,146 +1,131 @@
-# Sistema de Monitoramento Ambiental IoT (Gateway IPv6)
-**Disciplina:** Comunicação e Redes - Eletiva 2  
+# Sistema de Monitoramento Ambiental IoT
+
+**Disciplina:** Comunicação e Redes - Eletiva 2  
 **Instituição:** Cesar School
 
-## 1. Visão Geral
-Este projeto documenta o desenvolvimento de uma solução completa de Internet das Coisas (IoT) para monitoramento em tempo real de temperatura e umidade. O sistema cumpre os requisitos da disciplina ao implementar um Broker MQTT em um Raspberry Pi e utilizar um microcontrolador ESP8266 como dispositivo sensor.
+## 1\. Arquitetura e Estrutura do Sistema
 
-A arquitetura é baseada em um **Gateway Local** (Raspberry Pi), que atua como concentrador de dados, servidor de aplicação e Broker de mensagens. Esta abordagem garante que o sistema permaneça funcional e resiliente, operando de forma autônoma mesmo sem conexão com a internet externa.
+Este projeto implementa uma solução de **Internet das Coisas (IoT)** para monitoramento em tempo real de temperatura e umidade, fundamentada em uma arquitetura de **Gateway Local** (Raspberry Pi). O sistema utiliza um **Broker MQTT** e garante **resiliência operacional** total, sendo funcional mesmo na ausência de conectividade externa com a Internet.
 
-A solução destaca-se pela implementação de uma **pilha dupla (IPv4/IPv6)** no Broker e pela segregação de protocolos de transporte (TCP e WebSockets) para diferentes clientes.
+### 1.1. Inovações em Protocolo e Endereçamento
 
----
+A implementação cumpre integralmente os requisitos de redes ao instituir:
 
-## 2. Metodologia de Desenvolvimento
-Para garantir o desenvolvimento paralelo entre hardware e software, uma etapa de simulação foi empregada.
-1.  **Mock Publisher (Simulador):** Um script Python (`simulador_gateway.py`) foi criado para mimetizar o comportamento do sensor, publicando dados JSON em intervalos regulares no Broker MQTT.
-2.  **Desenvolvimento Desacoplado:** Isso permitiu que toda a interface (Frontend) e a lógica de alertas (Backend) fossem construídas e validadas antes mesmo da montagem do hardware, garantindo a integração contínua.
+  * **Pilha Dupla (IPv4/IPv6):** O Broker **Mosquitto** está configurado para operar em **dual-stack**, aceitando conexões nos dois protocolos.
+  * **Segregação de Protocolos de Transporte:** O tráfego é segmentado para otimizar o desempenho de cada cliente:
 
----
+| Cliente | Protocolo | Porta | Justificativa Técnica |
+| :--- | :--- | :--- | :--- |
+| **Nó Sensor (ESP8266)** | MQTT sobre **TCP/IP** | `1883` | Baixo *overhead*, ideal para microcontroladores com recursos limitados. |
+| **Dashboard (React)** | MQTT sobre **WebSockets** (WS) | `9001` | Essencial para comunicação *full-duplex* em navegadores web. |
 
-## 3. Arquitetura e Fluxo de Dados
+-----
 
-O sistema opera em uma topologia estrela, onde o Raspberry Pi é o centro de todas as operações de rede e processamento.
+## 2\. Fluxo de Dados, Persistência e Telemetria
 
-### 3.1. Fluxo Lógico de Dados
+O sistema opera em uma topologia estrela, com o Raspberry Pi atuando como ponto nodal para todas as operações.
 
-1.  **COLETA (Sensor):** O **ESP8266 (D1 Mini)** coleta dados de temperatura e umidade, serializa-os em um payload JSON e os publica em um tópico MQTT.
-2.  **DISTRIBUIÇÃO (Broker):** O **Raspberry Pi** (rodando o Broker **Mosquitto**) recebe a mensagem no tópico `projeto_redes/sensor/dados`.
-3.  **PROCESSAMENTO (Backend):** Um script Python (`backend_iot.py`), também no Raspberry Pi e inscrito neste tópico, recebe a mensagem.
-4.  **PERSISTÊNCIA (Backend):** O script Python imediatamente salva o dado bruto em um arquivo de log local (`sensor_history.json`) para fins de auditoria e histórico.
-5.  **VISUALIZAÇÃO (Frontend):** O Broker Mosquitto, simultaneamente, encaminha a mesma mensagem para o **Dashboard React**, que está inscrito no mesmo tópico.
-6.  **ALERTAS (Backend):** O script Python compara o dado recebido com as regras salvas em `gateway_config.json`. Se uma regra for violada, ele dispara uma notificação via **API do Telegram**.
+### 2.1. Payload de Telemetria (JSON)
 
-### 3.2. Endereçamento de Rede e Protocolos
+O **ESP8266** utiliza o **NTP** para sincronização de tempo e serializa o *payload* JSON. O campo **`sent_at`** é crucial para a análise de desempenho do Frontend:
 
-Um dos principais requisitos de *Redes* foi a segregação de protocolos para otimização de clientes:
+| Chave | Origem | Descrição |
+| :--- | :--- | :--- |
+| `temperatura`, `umidade` | Sensor DHT11 | Leituras em Celsius e percentual. |
+| `timestamp` | NTP (Formatado) | Data e hora de envio (Ex: `YYYY-MM-DD HH:MM:SS`). |
+| **`sent_at`** | **NTP (Epoch Time)** | **Timestamp Unix em milissegundos**, utilizado pelo Dashboard para calcular o *Jitter* (Variação de Latência). |
 
-* **ESP8266 (Sensor) $\rightarrow$ Raspberry Pi (Broker)**
-    * **Protocolo:** MQTT sobre TCP/IP
-    * **Porta:** `1883`
-    * **Justificativa:** É a implementação nativa do MQTT, leve e com baixo *overhead*, ideal para microcontroladores com recursos limitados (ESP8266).
+### 2.2. Pipeline Lógico de Dados e Processamento
 
-* **React (Dashboard) $\leftrightarrow$ Raspberry Pi (Broker)**
-    * **Protocolo:** MQTT sobre WebSockets (WSS)
-    * **Porta:** `9001`
-    * **Justificativa:** Navegadores web não podem estabelecer conexões TCP/IP puras na porta 1883 por razões de segurança. O WebSocket "encapsula" o tráfego MQTT, permitindo a comunicação *full-duplex* (tempo real) com o React.
+1.  **COLETA:** O ESP8266 publica o *payload* no tópico `projeto_redes/sensor/dados`.
+2.  **PROCESSAMENTO (Backend - `backend_iot.py`):** O script Python, inscrito no tópico de dados, realiza simultaneamente:
+      * **Persistência:** Salva o dado bruto em `sensor_history.json` para auditoria.
+      * **Alertas:** Compara os dados com as regras salvas em `gateway_config.json` e dispara notificações via **API do Telegram** em caso de violação.
+3.  **VISUALIZAÇÃO (Frontend):** O Dashboard React recebe a mensagem via **WebSockets**.
+4.  **Monitoramento de Conectividade (LWT):** O Broker envia a mensagem `"offline"` para o tópico `projeto_redes/sensor/status` se o sensor cair, acionando o alerta no Backend.
 
-* **Pilha IPv6:** O Broker Mosquitto foi configurado com `socket_domain ipv6`, habilitando o listener em modo de pilha dupla (dual-stack), aceitando conexões tanto via IPv4 quanto IPv6 em ambas as portas.
+-----
 
----
+## 3\. Componentes e Funcionalidades do Dashboard (Frontend React)
 
-## 4. Hardware e Tecnologias
+O Dashboard centraliza a visualização, a análise e a gestão da infraestrutura.
 
-### 4.1. Gateway & Servidor (Raspberry Pi 3 B+)
-* **Função:** Broker, Servidor de Aplicação, Gerenciador de Alertas.
-* **Sistema Operacional:** Raspberry Pi OS (Linux Debian Bookworm).
-* **Serviços Chave:**
-    * `Mosquitto`: Broker MQTT configurado para IPv6 e WebSockets.
-    * `systemd`: Gerenciador de serviços do Linux (utilizado para auto-execução).
-    * `Python 3`: Linguagem do script de backend.
+### 3.1. Tela de Monitoramento em Tempo Real (`RealTime`)
 
-### 4.2. Nó Sensor (Wemos D1 Mini V4.0)
-* **Microcontrolador (Obrigatório):** **ESP8266**
-* **Função:** Coleta de dados e publicação MQTT.
-* **Firmware:** C++ (Arduino Framework).
-* **Bibliotecas:** `PubSubClient` (Cliente MQTT), `ArduinoJson` (Serialização).
+Esta tela foca na leitura instantânea e na aplicação de regras visuais de segurança.
 
-### 4.3. Interface (Frontend)
-* **Framework:** React + Vite.
-* **Bibliotecas:** `mqtt` (Cliente WebSocket), `recharts` (Gráficos), `react-router-dom` (Navegação).
+  * **Indicadores:** Exibe a **Temperatura** e **Umidade** atuais em *cards* de alto contraste.
+  * **Alerta Visual Condicional:** O *card* de Temperatura aplica um **estilo condicional** (cores `danger` ou `cold`) se a leitura estiver fora da faixa operacional segura (Ex: $\geq 30^\circ\text{C}$ ou $\leq 15^\circ\text{C}$), fornecendo feedback imediato ao operador.
 
----
+### 3.2. Tela de Histórico e Análise (`History`)
 
-## 5. Detalhes da Implementação
+Esta tela oferece ferramentas analíticas e de auditoria sobre os dados coletados.
 
-### 5.1. Configuração da Rede (Projeto Portátil)
-Para garantir a funcionalidade em qualquer ambiente (residência, faculdade) sem depender de IPs fixos ou redes desconhecidas, foi criada uma rede dedicada.
-* **SSID:** `projeto_redes`
-* **Senha:** `redesgrupo2`
+  * **Métricas Calculadas:** Calcula e exibe o **Ponto de Orvalho** (*Dew Point*) com base na Temperatura e Umidade.
+  * **Gráficos Segregados:** Apresenta `AreaChart` para **Variação Térmica** e `LineChart` para **Umidade Relativa** e **Ponto de Orvalho**, facilitando a análise de tendências.
+  * **Tabela de Auditoria:** Tabela detalhada de registros (`sensor_history.json`), com funções de **Exportação CSV** e **Exclusão de Registros** (*localmente*).
 
-O Raspberry Pi e o D1 Mini são configurados para se conectarem exclusivamente a esta rede. Na apresentação, basta criar um **Hotspot Móvel (Roteador)** com estas credenciais para que todo o sistema se conecte automaticamente.
+### 3.3. Tela de Gestão de Alertas
 
-### 5.2. Backend (Raspberry Pi)
-O núcleo da inteligência reside no script `backend_iot.py`.
-* **Execução Automática:** O script é gerenciado pelo `systemd` (serviço `iot-gateway.service`). Isso garante que o backend inicie automaticamente assim que o Raspberry Pi é ligado na tomada, sem necessidade de monitor ou login.
-* **Persistência de Dados:** O sistema utiliza dois arquivos JSON locais para persistência:
-    1.  `sensor_history.json`: Um log rotativo (últimos 2000 registros) de todas as leituras recebidas, garantindo um backup de auditoria.
-    2.  `gateway_config.json`: Salva as regras de alerta (Temp. Máxima, Chat ID) definidas pelo usuário no dashboard. O sistema recarrega este arquivo a cada reinicialização.
-* **Integração Telegram:** O script escuta o tópico de configuração (`projeto_redes/config/alertas`) e, ao receber dados do sensor, avalia as regras. Se uma regra for violada, o script faz uma requisição `POST` para a API HTTP do Telegram, enviando a notificação.
+Esta interface permite ao cliente configurar as regras do Backend, garantindo que os alertas de segurança e desconexão sejam entregues ao destinatário correto.
 
-### 5.3. Funcionalidades do Dashboard
-O Frontend React (cliente) é a interface de gerenciamento e visualização:
-1.  **Monitoramento em Tempo Real:** Visualização instantânea de temperatura e umidade com indicadores visuais.
-2.  **Telemetria de Rede:** Análise do tráfego MQTT, incluindo contador de pacotes, cálculo de latência (RTT) e inspeção de payload JSON.
-3.  **Histórico e Auditoria:** Tabela detalhada de registros com opção de exclusão (local) e exportação dos dados em formato `.csv` para relatórios.
-4.  **Gestão de Alertas:** Interface para configurar limites de segurança e o ID do Telegram. Ao salvar, a configuração é publicada via MQTT para o Raspberry Pi, que a salva no disco.
+| Campo | Tópico MQTT | Propósito |
+| :--- | :--- | :--- |
+| **ID do Chat Telegram** | `projeto_redes/config/alertas` | Define o destinatário para todas as notificações de alerta e **desconexão (LWT)**. |
+| **Temp. Máxima** | `projeto_redes/config/alertas` | Limite de segurança superior. |
+| **Umid. Mínima** | `projeto_redes/config/alertas` | Limite de segurança inferior. |
 
----
+### 3.4. Tela de Telemetria de Rede
 
-## 6. Como Rodar o Projeto
+Esta tela foca no diagnóstico da estabilidade da infraestrutura, crucial para a disciplina de Redes:
 
-### Pré-requisitos
-* Um roteador (ou Hotspot de celular) com a rede `projeto_redes` (Senha: `redesgrupo2`).
-* Node.js (LTS) instalado no computador de visualização.
+  * **Status do Nó Sensor:** Alerta visual dinâmico determinado pelo *payload* do **LWT** (`online`/`offline`), refletindo a saúde do ESP8266.
+  * **Jitter (Gráfico):** Gráfico que visualiza a **Variação Sequencial de Latência**, sendo a métrica primária para avaliar a estabilidade do Wi-Fi e do *timing* do MQTT.
 
-### 6.1. Backend (Raspberry Pi)
-O sistema foi configurado para **auto-execução**.
-1.  Ligue o Raspberry Pi na fonte de energia.
-2.  Ele se conectará ao Wi-Fi `projeto_redes` e iniciará o serviço `iot-gateway.service` automaticamente.
-3.  (Opcional) Para verificar o status, acesse via SSH e digite: `systemctl status iot-gateway.service`.
+-----
 
-### 6.2. Sensor (D1 Mini / ESP8266)
-1.  Ligue o D1 Mini em uma fonte USB.
-2.  Ele se conectará ao Wi-Fi `projeto_redes` e começará a publicar dados no IP do Raspberry Pi.
-    *Nota: O IP do Raspberry Pi (`192.168.X.X`) está fixado no código do firmware (`main.ino`).*
+## 4\. Metodologia de Desenvolvimento e Hardware
 
-### 6.3. Frontend (Computador de Visualização)
-1.  Conecte o computador à rede `projeto_redes`.
-2.  Clone o repositório.
-3.  No código (`frontend/src/context/MQTTContext.jsx`), atualize a variável `BROKER_URL` com o IP do Raspberry Pi (ex: `ws://192.168.43.10:9001`).
-4.  Instale as dependências e inicie:
+  * **Desenvolvimento Desacoplado:** A utilização de um **Mock Publisher** (`simulador_gateway.py`) permitiu a validação paralela do Backend e Frontend.
+  * **Hardware:** Raspberry Pi 3 B+ (Gateway/Broker/Backend) e Wemos D1 Mini V4.0 (Nó Sensor/DHT11).
+  * **Software Chave:** `Mosquitto`, `systemd`, `Python 3`, `React + Vite`.
+
+-----
+
+## 5\. Procedimentos de Execução (Como Rodar o Projeto)
+
+### 5.1. Pré-requisitos e Configuração da Rede
+
+1.  **Rede Dedicada:** Crie um **Hotspot Móvel (Roteador)** com as seguintes credenciais:
+      * **SSID:** `projeto_redes`
+      * **Senha:** `redesgrupo2`
+2.  **Software:** Certifique-se de que o **Node.js (LTS)** e o cliente Mosquitto estão instalados na máquina de desenvolvimento.
+
+### 5.2. Inicialização do Backend e Sensor
+
+1.  **Gateway (Raspberry Pi):** Ligue o Raspberry Pi. O sistema (Broker Mosquitto e `iot-gateway.service`) iniciará automaticamente via **`systemd`**.
+2.  **Sensor (D1 Mini / ESP8266):** Ligue o D1 Mini. Ele se conectará ao Wi-Fi e iniciará a publicação dos dados.
+      * *Nota: O IP do Raspberry Pi deve ser atualizado no código do firmware (`main.ino`) caso a rede mude.*
+
+### 5.3. Inicialização do Frontend (Dashboard React)
+
+1.  **Conexão:** Conecte o computador à rede `projeto_redes`.
+2.  **Configuração:** No arquivo `frontend/src/context/MQTTContext.jsx`, ajuste a variável `BROKER_URL` com o endereço IP atual do Raspberry Pi (Ex: `ws://[IP_DO_PI]:9001`).
+3.  **Execução:**
     ```bash
     cd frontend
     npm install
     npm run dev
     ```
-5.  Acesse o link (`http://localhost:5173`) exibido no terminal.
+4.  Acesse o Dashboard através do link (`http://localhost:5173`) exibido no terminal.
 
----
+-----
 
-## 7. Tópicos MQTT Utilizados
+## 6\. Autores
 
-| Tópico | Publicador | Assinante(s) | Descrição |
-| :--- | :--- | :--- | :--- |
-| `projeto_redes/sensor/dados` | D1 Mini (ESP8266) | Backend (Python) / Frontend (React) | Leituras de sensor. |
-| `projeto_redes/config/alertas` | Frontend (React) | Backend (Python) | Envio de novas regras de alerta. |
-
----
-
-## 8. Autores
-* LORENZO MAZZULI MARCELINO
-* LUCAS LUSTOSA SIQUEIRA EMERY
-* PEDRO TOJAL DE MEDEIROS
-* THIAGO DE LIMA VON SOHSTEN
-* HENRIQUE LEAL DA MATTA
-* GABRIEL JOSÉ GALDINO LEITÃO DA COSTA
+  * LORENZO MAZZULI MARCELINO
+  * LUCAS LUSTOSA SIQUEIRA EMERY
+  * PEDRO TOJAL DE MEDEIROS
+  * THIAGO DE LIMA VON SOHSTEN
+  * HENRIQUE LEAL DA MATTA
+  * GABRIEL JOSÉ GALDINO LEITÃO DA COSTA
